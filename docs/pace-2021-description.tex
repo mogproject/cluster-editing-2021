@@ -82,7 +82,7 @@ Given a graph $G=(V,E)$, the Cluster Editing Problem (CEP) asks for a smallest \
 
 While solving CEP, we always work with an annotated graph $G=(V,E,F)$, where $F \subseteq \binom{V}{2}$ are ``fixed'' relationships in the solution. That is, $F$ is the union of a set of \textit{permanent non-edges} ($\overline{e} \in F \setminus E$ whose endpoints cannot be adjacent in the solution) and \textit{permanent edges} ($e \in F \cap E$ that cannot be removed). Initially, we set $F=\emptyset$.
 
-The set of neighbors of a vertex $i$ is denoted by $N(i)$, and define $N[i] := N(i) \cup \{i\}$. The \textit{distance} between two vertices $i,j\in V$, denoted by $d_G(i,j)$, is the minimum number of edges of a path linking $i$ and $j$ in $G$. For a vertex pair $\{u,v\} \in \binom{V}{2}$, we denote by $\phi(u,v)$ the number of common neighbors, that is, $\phi(u,v):=|N(u)\cap N(v)|$. Likewise, the number of non-common neighbors except $\{u,v\}$ is denoted by $\mu(u,v):=|(N(u)\setminus N(v)) \cup (N(v)\setminus N(u))\setminus \{u,v\}|$.
+We use  $N(i)$ and $N[I]$ to denote the open and closed neighborhoods of a vertex $i$, respectively. The \textit{distance} between two vertices $i,j\in V$ is denoted by $d_G(i,j)$ and equals the minimum number of edges in a $i,j$-path in $G$. For a vertex pair $\{u,v\} \in \binom{V}{2}$, we denote by $\phi(u,v)$ the number of common neighbors, that is, $\phi(u,v):=|N(u)\cap N(v)|$. Likewise, the number of non-common neighbors except $\{u,v\}$ is denoted by $\mu(u,v):=|(N(u)\setminus N(v)) \cup (N(v)\setminus N(u))\setminus \{u,v\}|$.
 
 \section{Brief Description of Algorithm}
 
