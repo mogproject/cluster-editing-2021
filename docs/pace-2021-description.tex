@@ -86,7 +86,7 @@ The set of neighbors of a vertex $i$ is denoted by $N(i)$, and define $N[i] := N
 
 \section{Brief Description of Algorithm}
 
-Our solver developed for the Exact track of PACE 2021 consists of two rounds. The first round, or the pre-solving step, aims at finding the best solution quickly, by random search enhanced with local search. The second round is responsible for exhaustive search by ordinary branch-and-bound except for utilizing the result of the first round.
+Our solver performs two rounds of computation. The first round, or pre-solve, aims to find the best solution quickly; here, we use random search enhanced with local search. The second round performs a branch-and-bound exhaustive search utilizing the result of the pre-solve as guidance.
 
 \subsection{First Round: Random Search}
 
