@@ -1,0 +1,132 @@
+
+\documentclass[a4paper,UKenglish,cleveref, autoref, thm-restate]{lipics-v2021}
+%This is a template for producing LIPIcs articles. 
+%See lipics-v2021-authors-guidelines.pdf for further information.
+%for A4 paper format use option "a4paper", for US-letter use option "letterpaper"
+%for british hyphenation rules use option "UKenglish", for american hyphenation rules use option "USenglish"
+%for section-numbered lemmas etc., use "numberwithinsect"
+%for enabling cleveref support, use "cleveref"
+%for enabling autoref support, use "autoref"
+%for anonymousing the authors (e.g. for double-blind review), add "anonymous"
+%for enabling thm-restate support, use "thm-restate"
+%for enabling a two-column layout for the author/affilation part (only applicable for > 6 authors), use "authorcolumns"
+%for producing a PDF according the PDF/A standard, add "pdfa"
+
+%\graphicspath{{./graphics/}}%helpful if your graphic files are in another directory
+
+\bibliographystyle{plainurl}% the mandatory bibstyle
+
+\title{PACE 2021 Solver Description: An Exact Solver for Cluster Editing} %TODO Please add
+
+\titlerunning{PACE 2021 Solver Description} %TODO optional, please use if title is longer than one line
+
+\author{Yosuke Mizutani}{School of Computing, University of Utah, USA}{yos@cs.utah.edu}{}{}%TODO mandatory, please use full name; only 1 author per \author macro; first two parameters are mandatory, other parameters can be empty. Please provide at least the name of the affiliation and the country. The full address is optional
+
+\authorrunning{Y. Mizutani} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+
+\Copyright{Yosuke Mizutani} %TODO mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
+
+\ccsdesc[100]{Theory of computation → Graph algorithms analysis} %TODO mandatory: Please choose ACM 2012 classifications from https://dl.acm.org/ccs/ccs_flat.cfm 
+
+\keywords{Cluster editing, PACE 2021} %TODO mandatory; please add comma-separated list of keywords
+
+\category{} %optional, e.g. invited paper
+
+\relatedversion{} %optional, e.g. full version hosted on arXiv, HAL, or other respository/website
+%\relatedversiondetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93]{Classification (e.g. Full Version, Extended Version, Previous Version}{URL to related version} %linktext and cite are optional
+
+\supplement{
+    Code submitted to the competition: \url{https://doi.org/10.5281/zenodo.4877899}.
+    Code repository on GitHub: \url{https://github.com/mogproject/cluster-editing-2021}
+}
+%optional, e.g. related research data, source code, ... hosted on a repository like zenodo, figshare, GitHub, ...
+%\supplementdetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93, subcategory={Description, Subcategory}, swhid={Software Heritage Identifier}]{General Classification (e.g. Software, Dataset, Model, ...)}{URL to related version} %linktext, cite, and subcategory are optional
+
+%\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
+
+%\acknowledgements{I want to thank \dots}%optional
+
+%\nolinenumbers %uncomment to disable line numbering
+
+\hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
+
+%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \EventEditors{John Q. Open and Joan R. Access}
+% \EventNoEds{2}
+% \EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
+% \EventShortTitle{CVIT 2016}
+% \EventAcronym{CVIT}
+% \EventYear{2016}
+% \EventDate{December 24--27, 2016}
+% \EventLocation{Little Whinging, United Kingdom}
+% \EventLogo{}
+% \SeriesVolume{42}
+% \ArticleNo{23}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newtheorem{rulex}[theorem]{Rule}
+
+\begin{document}
+
+\maketitle
+
+%TODO mandatory: add short abstract of the document
+\begin{abstract}
+This note describes our submission to the Exact track of PACE 2021: Cluster Editing. Our solver employs a two-phase strategy: it first constructs a high-quality feasible solution via random search, then performs a guided exhaustive search. Both phases are based on a branch-and-bound framework.
+\end{abstract}
+
+\section{Background}
+\label{sec:typesetting-summary}
+
+Given a graph $G=(V,E)$, the Cluster Editing Problem (CEP) asks for a smallest \textit{edge modification set} $S \subseteq \binom{V}{2} := \{\{u,v\} \mid u,v \in V \wedge u \neq v\}$ such that $G \ \Delta\ S := (V,(E \setminus S) \cup (S \setminus E))$ is a \textit{cluster graph}, that is, a disjoint union of complete graphs. A graph is a cluster graph if and only if it is $P_3$-free \cite{shamir2004cluster}.
+
+While solving CEP, we always work with an annotated graph $G=(V,E,F)$, where $F \subseteq \binom{V}{2}$ are ``fixed'' relationships in the solution. That is, $F$ is the union of a set of \textit{permanent non-edges} ($\overline{e} \in F \setminus E$ whose endpoints cannot be adjacent in the solution) and \textit{permanent edges} ($e \in F \cap E$ that cannot be removed). Initially, we set $F=\emptyset$.
+
+We use  $N(i)$ and $N[i]$ to denote the open and closed neighborhoods of a vertex $i$, respectively. The \textit{distance} between two vertices $i,j\in V$ is denoted by $d_G(i,j)$ and equals the minimum number of edges in a $i,j$-path in $G$. For a vertex pair $\{u,v\} \in \binom{V}{2}$, we denote by $\phi(u,v)$ the number of common neighbors, that is, $\phi(u,v):=|N(u)\cap N(v)|$. Likewise, the number of non-common neighbors except $\{u,v\}$ is denoted by $\mu(u,v):=|(N(u)\setminus N(v)) \cup (N(v)\setminus N(u))\setminus \{u,v\}|$.
+
+\section{Brief Description of Algorithm}
+
+Our solver performs two phases of computation. The first phase, or pre-solve, aims to find the best solution quickly; here, we use random search enhanced with local search. The second phase performs a branch-and-bound exhaustive search utilizing the result of the pre-solve as guidance.
+
+\subsection{First Phase: Random Search}
+
+Our solver follows a branch-and-bound procedure in this phase, but it stops when a certain number of feasible solutions have been found. At each search node, the solver applies reduction rules but does not compute lower bounds so that it tends to find more solutions. Then, it performs binary branching on a non-permanent vertex pair $\{u,v\} \in \binom{V}{2} \setminus F$, creating instances $G_1=(V,E \setminus \{uv\}, F \cup \{\{u,v\}\})$ and $G_2 = (V,E \cup \{uv\}, F \cup \{\{u,v\}\})$, and solves for them recursively. Every time a feasible solution has been found, it runs a local search to see if there exists a better solution. With different seeds for a pseudorandom number geenrator, we perform this phase repeatedly.
+
+\textbf{Reduction rules.} We employ four reduction rules from Bastos et al.'s work \cite{bastos2016efficient} (Rules 1-4), along with one additional rule (Rule 5).
+
+\begin{itemize}
+    \item \textbf{Rule 1.} If $d_G(i,j) \geq 3$, then set $ij$ as a permanent non-edge.
+    \item \textbf{Rule 2.} If $ij, jk$ are permanent edges, then set $ik$ as a permanent edge.
+    \item \textbf{Rule 3.} If $ij$ is a permanent edge and $jk$ is a permanent non-edge, then set $ik$ as a permanent non-edge.
+    \item \textbf{Rule 4.} If $i$ and $j$ are true twins (i.e., $N[i]=N[j]$), then set $ij$ as a permanent edge.
+    \item \textbf{Rule 5.} If $G$ has a component $C=(V', E')$ such that $|E'| \geq (|V'| - 1)^2 / 2$, then set all of $\binom{V'}{2}$ as permanent edges. Thus, $V'$ forms a clique in the solution.
+\end{itemize}
+
+\textbf{Branching.} In the first phase, the solver uses two branching strategies: (1) choosing a non-permanent vertex pair $\{u,v\}$ with the maximum $\phi(u,v)$ and (2) choosing $\{u,v\}$ with the maximum $\mu(u,v)$. Ties are broken randomly.
+
+\textbf{Local search.} Once the solver finds a feasible solution, it tries the following changes to see if there is a better solution: (1) isolating one vertex from a clique and (2) transferring one vertex from a clique to another clique.
+
+
+\enlargethispage{\baselineskip}
+
+\subsection{Second Phase: Exhaustive Search}
+
+In the second phase, our solver again runs a branch-and-bound procedure, but with lower-bound computation based on the idea of $P_3$-packing \cite{bevern2018parameterizing} and fewer reduction rules. Furthermore, we run this phase with different metaparameters, i.e., different branching strategies and randomization. Thus, we have multiple \textit{jobs} to run. Finally, this phase finishes when one of the jobs has examined all the search space.
+
+\textbf{Reduction rules.} In this phase, only Rules 1-3 will be applied.
+
+\textbf{Branching.} Let $S \subseteq \binom{V}{2}$ be the best edge modification set found in the first phase. In the second phase, the solver uses the following two branching strategies: (1) choosing a non-permanent vertex pair $\{u,v\}$ in $S$ first and (2) choosing $\{u,v\}$ not in $S$ first. Ties are broken randomly. Ordering is precomputed for each job.
+
+\textbf{Lower bounds.} At every search node, we try to obtain an edge-disjoint $P_3$-packing of the remaining graph to find a lower bound of the number of edge modifications. Here we allow reusing permanent edges and non-edges as many as possible. Packing is done in a greedy manner; a vertex with the minimum degree is chosen as an endpoint of a $P_3$, iteratively.
+
+\textbf{Job scheduler.} For each job, we keep track of \textit{progress}, which is a ratio of the examined search space to the entire search space. If there are multiple jobs with the same branching strategy, then the job with the least progress will be eliminated periodically. Otherwise, the job with the most progress will be allotted more computation time because it is more ``promising'' than another.
+
+%%
+%% Bibliography
+%%
+
+%% Please use bibtex, 
+
+\bibliography{pace-2021-description}
+
+\end{document}
