@@ -8,7 +8,7 @@ This repository stores the source code of my solver for the Exact track of the [
 
 ### Solver Description
 
-TBD
+- PDF: https://raw.githubusercontent.com/wiki/mogproject/cluster-editing-2021/pace-2021-description.pdf
 
 ### Requirements
 
